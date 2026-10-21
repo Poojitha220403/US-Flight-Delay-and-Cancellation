@@ -1,10 +1,25 @@
-cat > .gitignore << 'EOF'
-# Ignore raw data and cache
-data/
-.kaggle/
-__pycache__/
+# Secrets / local config
+.env
 
-# Keep all outputs visible
-!outputs/
-!outputs/**
-EOF
+# Raw data and generated stream batches (download raw CSV from Kaggle; see README)
+data/*
+!data/raw/
+data/raw/*
+!data/raw/dictionary.html
+!data/eda/
+!data/eda/**
+.kaggle/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Spark checksum files
+*.crc
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
