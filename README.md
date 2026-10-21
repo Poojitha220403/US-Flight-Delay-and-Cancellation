@@ -2,6 +2,7 @@
 
 An end-to-end **Apache Spark** big-data pipeline over **2.9 million U.S. domestic flights**: ingestion and cleaning to partitioned Parquet, exploratory and Spark SQL analytics, **MLlib** delay prediction (ROC-AUC **0.93**), and **Structured Streaming** that scores simulated live flight feeds in micro-batches.
 
+![CI](https://github.com/Poojitha220403/US-Flight-Delay-and-Cancellation/actions/workflows/ci.yml/badge.svg)
 ![PySpark](https://img.shields.io/badge/PySpark-3.x-E25A1C?logo=apachespark&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
 ![MLlib](https://img.shields.io/badge/Spark-MLlib-orange)
@@ -86,6 +87,22 @@ python src/viz_stream_live.py
 >
 > If `data/raw/` is empty, `run.sh` skips ingestion and reuses the curated Parquet already in `outputs/curated/`.
 
+## Testing
+
+The tests run the **real pipeline scripts end to end** on a generated 1,500-flight dataset in the Kaggle schema (Jan–Jun 2019, ~5% cancelled), using temporary directories and local Spark:
+
+- **Ingestion (`01_ingest_eda.py`):** all 10 analysis tables are written; Parquet is partitioned `year=/month=`; airline and monthly counts reconcile with the delay summary; the correlation is a valid coefficient.
+- **Modeling (`03_predictive_model.py`):** logistic regression trains and saves a `PipelineModel`; ROC-AUC is above 0.8; the model card, confusion matrix and prediction sample are mutually consistent.
+- **Streaming batches (`04a_make_stream_batches.py`):** the last 3 months are split into ordered micro-batch CSVs with the columns the streaming job expects.
+- **Known defect, tracked:** an `xfail(strict=True)` test documents that cancelled flights are dropped before the cancellation analysis (see *Limitations*). It will start failing, as a reminder, once the bug is fixed.
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt   # needs Java 17
+pytest -q -rx
+```
+
+GitHub Actions runs the suite (Java 17 + PySpark) on every push.
+
 ## Results
 
 All numbers below come from the files in `outputs/`.
@@ -134,7 +151,7 @@ That gives **accuracy 93.7%, precision 89.9% and recall 72.5%** for delayed flig
 
 ## Limitations & future work
 
-- **Cancelled flights are dropped during cleaning**, so `cancellations_by_code.csv` and `cancellations_pie.png` contain a single blank category. Cancellation analysis needs a separate path that keeps those rows.
+- **Cancelled flights are dropped during cleaning** (`dropna` on `arr_delay` in `01_ingest_eda.py`), so `cancellations_by_code.csv` and `cancellations_pie.png` contain a single blank category. Cancellation analysis needs to run before that filter. The defect is pinned by a strict-xfail test.
 - The classifier relies heavily on departure delay. A pre-departure model (schedule, route, weather and congestion features only) would be more useful for planning.
 - Weather and ATC constraints aren't modeled explicitly.
 - **Next steps:** gradient-boosted trees with tuning at scale, and running the streaming job on a managed Spark cluster (EMR / Dataproc) instead of local mode.
@@ -159,6 +176,7 @@ That gives **accuracy 93.7%, precision 89.9% and recall 72.5%** for delayed flig
 │   ├── 04_stream_predict.py       # Structured Streaming + model scoring
 │   ├── viz_model.py               # model plots
 │   └── viz_stream_live.py         # live streaming dashboard
+├── tests/                         # end-to-end pytest suite (synthetic data)
 ├── spark_pipeline/main_pipeline.py
 ├── outputs/
 │   ├── curated/                   # Parquet, partitioned year=/month=

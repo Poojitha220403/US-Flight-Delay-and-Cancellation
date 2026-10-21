@@ -23,3 +23,7 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+# Test caches
+.pytest_cache/
+.ruff_cache/
